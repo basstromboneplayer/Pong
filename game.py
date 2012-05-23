@@ -2,6 +2,8 @@
 
 import pygame
 from pygame.locals import *
+from socket_handler import Socket_Handler
+import zipfile, shutil, os
 
 def reset_game(ball, paddle):
 	ball.rect = ball.image.get_rect()
@@ -52,6 +54,69 @@ def update_computer_position(ball, computer_paddle):
 	else:
 		computer_paddle.ypos += difference
 
+
+
+def download_asset_list(s):
+	s.send_packet('LIST')
+	data = s.decode_packet(s.receive_packet())
+
+	if	data[0:5] != 'ERROR':
+		return data
+	else:
+		print data	# you have an error message from the server
+
+def download_file(s,filename):
+	s.send_packet('FILE ' + filename)
+	data = s.receive_packet()
+
+	if	data[0:5] != 'ERROR':
+		# save the file
+		f = open(filename,'wb')
+		f.write(data)
+		f.close()
+	else:
+		print data	# you have an error message from the server
+
+def unzip_file(filename):
+	zfile = zipfile.ZipFile(filename, 'r')
+	for fname in zfile.namelist():
+		if fname.endswith('/'):
+			os.makedirs(fname)
+		else:
+			# decompress each file's data
+			data = zfile.read(fname)
+
+			# save the decompressed data to a new file
+			fout = open(fname, "w")
+			fout.write(data)
+			fout.close()
+			print "New file created --> %s" % fname
+			print '-'*40
+	
+	# delete zip
+	if os.path.isfile(filename):
+		os.remove(filename)
+
+def clean_dir():
+	assets = ['ball.png', 'paddle.png', 'assets.zip', 'temp.txt']
+	
+	# remove individual assets
+	for fname in assets:
+		if os.path.isfile(fname):
+			os.remove(fname)
+
+	# remove assets directory
+	fname = 'assets/'
+	if os.path.isdir(fname):
+		shutil.rmtree(fname)
+
+
+
+
+
+
+
+
 width  = 320
 height = 240
 size   = [width, height]
@@ -59,15 +124,66 @@ pygame.init()
 screen = pygame.display.set_mode(size)
 background = pygame.Surface(screen.get_size())
 
+
+# always start with no assets
+clean_dir()
+
+#######################################
+# 3 different modes for getting assets
+#######################################
+
+s = Socket_Handler('localhost', 30000, 'client')
+s.create()
+
+# 0 - Download each asset individually
+# 1 - Download a zip file and extract assets
+# 2 - Download an asset list and download each asset as needed
+
+download_method = 0
+
+
+
+# Method 1: Download each asset individually
+if download_method == 0:
+	ball_img = 'ball.png'
+	paddle_img = 'paddle.png'
+	download_file(s, ball_img)
+	download_file(s, paddle_img)
+
+# Method 2: Download a single zip file from the server and extract the assets locally
+elif download_method == 1:
+	ball_img = 'assets/ball.png'
+	paddle_img = 'assets/paddle.png'
+	zfile = 'assets.zip'
+	download_file(s, zfile)
+	unzip_file(zfile)
+
+# Method 3: Download an asset list and download each asset as needed
+elif download_method == 2:
+	ball_img = 'ball.png'
+	paddle_img = 'paddle.png'
+	asset_list = download_asset_list(s)
+	
+	print repr(asset_list)
+	
+	# Download all assets for now, but should download them as needed
+	for fname in asset_list:
+		download_file(s, fname)
+
+
+
+
+
+
 paddle = pygame.sprite.Sprite() # create sprite
-paddle.image = pygame.image.load("paddle.png").convert_alpha() # load ball image
+paddle.image = pygame.image.load(paddle_img).convert_alpha() # load ball image
 
 paddle2 = pygame.sprite.Sprite()
 paddle2.image = paddle.image
 
 
 ball = pygame.sprite.Sprite()
-ball.image = pygame.image.load("ball.png").convert_alpha()
+ball.image = pygame.image.load(ball_img).convert_alpha()
 reset_game(ball, paddle)
 screen.blit(ball.image, ball.rect)
 screen.blit(paddle.image, paddle.rect)

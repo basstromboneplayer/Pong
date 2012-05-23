@@ -1,7 +1,34 @@
+5-22-12
+
+- Added Socket Handler class. The server can accept the following commands (and can be extended to accept more):
+	'FILE' - returns request file to client
+	'LIST' - returns an asset list in the form of a dictionary
+	'DATA' - Currently returns the client packet. This can be extended to pass game state info.
+			- All other requests return an 'ignoring request' error
+
+- Added 3 Methods of downloading assets and each method is activated by setting 'download_method' equal to one of the following:
+	# 0 - Download each asset individually
+	# 1 - Download a zip file and extract assets
+	# 2 - Download an asset list and download each asset as needed
+
+- Added the following functions
+
+	def download_asset_list(s):
+		# retrieves an asset list
+	def download_file(s,filename):
+		# downloads a given file
+	def unzip_file(filename):
+		# unzips a given zip file
+	def clean_dir():
+		# removes all previously downloaded assets
+
+- Remember to run the server first
+
+
 README
 
 1) zip file - all assets
 
-2) single file with asset names, assets transfered on request
+2) single file with asset names, assets transferred on request
 
 3) on each update, send everything
